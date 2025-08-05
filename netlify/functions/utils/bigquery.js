@@ -15,9 +15,16 @@ const initBigQuery = () => {
       });
     } else if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
       // Fallback to environment variable
+      console.log('Credentials length:', process.env.GOOGLE_CLOUD_CREDENTIALS.length);
+      console.log('First 200 chars:', process.env.GOOGLE_CLOUD_CREDENTIALS.substring(0, 200));
+      console.log('Last 200 chars:', process.env.GOOGLE_CLOUD_CREDENTIALS.substring(process.env.GOOGLE_CLOUD_CREDENTIALS.length - 200));
+      
       const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+      console.log('Parsed credentials keys:', Object.keys(credentials));
+      console.log('Has client_email?', !!credentials.client_email);
+      
       bigqueryClient = new BigQuery({
-        projectId: process.env.BIGQUERY_PROJECT_ID,
+        projectId: process.env.BIGQUERY_PROJECT_ID || credentials.project_id,
         credentials: credentials
       });
     } else {
