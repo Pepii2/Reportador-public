@@ -15,7 +15,11 @@
       "Bash(npm run netlify:dev:*)",
       "Bash(node:*)",
       "Bash(test:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(npx netlify functions:serve:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }
