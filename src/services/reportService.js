@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import { PDFReportGenerator } from './pdfReportGenerator'
+import { OnePagePDFGenerator } from './onePagePdfGenerator'
 
 class ReportService {
   constructor() {
@@ -583,9 +583,9 @@ class ReportService {
    * Generate professional PDF report
    */
   async generatePDFReport(reportData, config) {
-    console.log('📄 Generating professional PDF report...')
+    console.log('📄 Generating one-page PDF report...')
     
-    const generator = new PDFReportGenerator()
+    const generator = new OnePagePDFGenerator()
     const doc = await generator.generate(reportData, config)
     return doc
   }
