@@ -12,8 +12,8 @@ npm run build
 Set these in Netlify Dashboard > Site Settings > Environment Variables:
 
 ```
-BIGQUERY_PROJECT_ID=bigquery-388915
-BIGQUERY_DATASET=unified_data
+BIGQUERY_PROJECT_ID=<your-project-id>
+BIGQUERY_DATASET=<your-dataset-name>
 GOOGLE_CLOUD_CREDENTIALS=<Your entire service account JSON as a single line>
 ```
 
