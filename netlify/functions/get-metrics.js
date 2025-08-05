@@ -10,8 +10,6 @@ const METRIC_DEFINITIONS = {
     { id: 'cpc', name: 'CPC', category: 'efficiency', format: 'currency', calculated: true, formula: 'cost/clicks', available: ['facebook', 'google', 'tiktok'] }
   ],
   facebook: [
-    { id: 'reach', name: 'Alcance', category: 'reach', format: 'number' },
-    { id: 'frequency', name: 'Frecuencia', category: 'reach', format: 'decimal' },
     { id: 'video_views', name: 'Reproducciones de Video', category: 'video', format: 'number' },
     { id: 'video_views_25', name: 'Video 25%', category: 'video', format: 'number' },
     { id: 'video_views_50', name: 'Video 50%', category: 'video', format: 'number' },

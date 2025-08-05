@@ -8,32 +8,32 @@ function calculateDerivedMetrics(rows) {
     
     // CTR (Click-through Rate)
     if (row.clicks !== undefined && row.impressions !== undefined && row.impressions > 0) {
-      calculated.ctr = (row.clicks / row.impressions * 100).toFixed(2);
+      calculated.ctr = (row.clicks / row.impressions * 100);
     }
     
     // CPM (Cost per Mille)
     if (row.cost !== undefined && row.impressions !== undefined && row.impressions > 0) {
-      calculated.cpm = (row.cost / row.impressions * 1000).toFixed(2);
+      calculated.cpm = (row.cost / row.impressions * 1000);
     }
     
     // CPC (Cost per Click)
     if (row.cost !== undefined && row.clicks !== undefined && row.clicks > 0) {
-      calculated.cpc = (row.cost / row.clicks).toFixed(2);
+      calculated.cpc = (row.cost / row.clicks);
     }
     
     // ROAS (Return on Ad Spend)
     if (row.revenue !== undefined && row.cost !== undefined && row.cost > 0) {
-      calculated.roas = (row.revenue / row.cost).toFixed(2);
+      calculated.roas = (row.revenue / row.cost);
     }
     
     // Conversion Rate
     if (row.conversions !== undefined && row.clicks !== undefined && row.clicks > 0) {
-      calculated.conversion_rate = (row.conversions / row.clicks * 100).toFixed(2);
+      calculated.conversion_rate = (row.conversions / row.clicks * 100);
     }
     
     // Cost per Conversion
     if (row.cost !== undefined && row.conversions !== undefined && row.conversions > 0) {
-      calculated.cost_per_conversion = (row.cost / row.conversions).toFixed(2);
+      calculated.cost_per_conversion = (row.cost / row.conversions);
     }
     
     return calculated;
@@ -444,7 +444,7 @@ function processPeriodComparison(rows, metrics) {
     
     changes[metric] = {
       absolute: current - previous,
-      percentage: previous > 0 ? ((current - previous) / previous * 100).toFixed(2) : 0
+      percentage: previous > 0 ? ((current - previous) / previous * 100) : 0
     };
   });
   

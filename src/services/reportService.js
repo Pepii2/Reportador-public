@@ -1,6 +1,5 @@
-import jsPDF from 'jspdf'
-import 'jspdf-autotable'
 import * as XLSX from 'xlsx'
+import { PDFReportGenerator } from './pdfReportGenerator'
 
 class ReportService {
   constructor() {
@@ -586,14 +585,12 @@ class ReportService {
   async generatePDFReport(reportData, config) {
     console.log('📄 Generating professional PDF report...')
     
-    const doc = new jsPDF('p', 'mm', 'a4')
-    const pageWidth = doc.internal.pageSize.width
-    const pageHeight = doc.internal.pageSize.height
-    const customization = reportData.customization || {}
-    const accentColor = this.hexToRgb(customization.accentColor || '#3b82f6')
-    
-    // Define margins and grid system (Bootstrap-inspired)
-    const margins = {
+    const generator = new PDFReportGenerator()
+    const doc = await generator.generate(reportData, config)
+    return doc
+  }
+
+  /**
       top: 20,
       right: 20,
       bottom: 20,
