@@ -63,12 +63,8 @@ export class PDFReportGenerator {
     yPos = this.margins.top
     yPos = this.addMetricsDashboard(reportData, contentWidth, yPos)
 
-    // Performance analysis
-    if (reportData.analytics?.performance) {
-      this.doc.addPage()
-      yPos = this.margins.top
-      yPos = this.addPerformanceAnalysis(reportData.analytics.performance, contentWidth, yPos)
-    }
+    // Performance analysis (skip if not available)
+    // This section can be expanded in the future if needed
 
     // Campaign comparison
     if (reportData.analytics?.campaigns && reportData.analytics.campaigns.length > 0) {
