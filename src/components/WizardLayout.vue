@@ -12,7 +12,7 @@ const route = useRoute()
 const currentStepComponent = ref(null)
 
 const steps = [
-  { step: 0, name: 'team', title: 'Equipo', route: 'TeamSelection' },
+  { step: 0, name: 'TIM', title: 'Equipo', route: 'TeamSelection' },
   { step: 1, name: 'platform', title: 'Plataforma', route: 'PlatformSelection' },
   { step: 2, name: 'report-type', title: 'Tipo de Reporte', route: 'ReportTypeSelection' },
   { step: 3, name: 'ad-accounts', title: 'Ad Accounts', route: 'AdAccountSelection' },
