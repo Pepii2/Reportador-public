@@ -133,7 +133,7 @@ const generateReport = async () => {
         <div class="header-content">
           <div class="logo">
             <h1>📊 Reportador</h1>
-            <p>Reportes de Marketing Digital Inteligentes</p>
+            <p>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAs</p>
           </div>
           <button @click="resetWizard" class="btn btn-outline">
             🔄 Reiniciar
