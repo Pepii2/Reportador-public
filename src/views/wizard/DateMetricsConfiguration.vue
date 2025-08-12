@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { wizardStore } from '@/stores/wizardStore'
 import reportService from '@/services/reportService'
 import DataRangeChecker from '@/components/DataRangeChecker.vue'
+import EvidenciaModal from '@/components/EvidenciaModal.vue'
 
 const showDebugInfo = ref(false)
 
@@ -29,7 +30,14 @@ const reportCustomization = ref({
   accentColor: '#3b82f6',
   selectedCardMetrics: [],
   chartType: 'line',
-  chartMetrics: []
+  chartMetrics: [],
+  // Evidencia table configuration
+  evidenciaConfig: {
+    enabled: true,
+    fields: ['campaign_name', 'status', 'cost', 'impressions', 'clicks', 'ctr', 'conversions'],
+    style: 'standard',
+    showTotals: true
+  }
 })
 
 const selectedMetrics = ref([...wizardStore.selectedMetrics])
@@ -43,6 +51,7 @@ const isExporting = ref(false)
 const previewData = ref(null)
 const generationError = ref(null)
 const showPreviewModal = ref(false)
+const showEvidenciaModal = ref(false)
 
 const toggleMetric = (metric) => {
   const index = selectedMetrics.value.findIndex(m => m.id === metric.id)
@@ -763,6 +772,55 @@ const isChartMetricSelected = (metricId) => {
   return reportCustomization.value.chartMetrics.includes(metricId)
 }
 
+// Evidencia Configuration Methods
+const openEvidenciaModal = () => {
+  showEvidenciaModal.value = true
+}
+
+const applyEvidenciaConfig = (config) => {
+  reportCustomization.value.evidenciaConfig.fields = config.fields
+  reportCustomization.value.evidenciaConfig.style = config.style
+  // Save to wizard store for persistence
+  wizardStore.setReportCustomization({
+    ...reportCustomization.value
+  })
+}
+
+const getFieldLabel = (field) => {
+  const labels = {
+    campaign_name: 'Campaña',
+    campaign_id: 'ID Campaña',
+    adset_name: 'Conjunto',
+    ad_name: 'Anuncio',
+    account_name: 'Cuenta',
+    status: 'Estado',
+    cost: 'Inversión',
+    impressions: 'Impresiones',
+    clicks: 'Clics',
+    ctr: 'CTR',
+    cpc: 'CPC',
+    cpm: 'CPM',
+    reach: 'Alcance',
+    frequency: 'Frecuencia',
+    conversions: 'Conversiones',
+    purchases: 'Compras',
+    revenue: 'Ingresos',
+    roas: 'ROAS',
+    budget: 'Presupuesto',
+    objective: 'Objetivo'
+  }
+  return labels[field] || field
+}
+
+const getStyleLabel = (style) => {
+  const styles = {
+    compact: 'Compacto',
+    standard: 'Estándar',
+    detailed: 'Detallado'
+  }
+  return styles[style] || style
+}
+
 // Calendar functions
 const toggleDateCalendar = () => {
   showDateCalendar.value = !showDateCalendar.value
@@ -1355,6 +1413,60 @@ defineExpose({
           </div>
         </div>
 
+        <!-- Evidencia Table Configuration -->
+        <div class="customization-subsection">
+          <h4>Tabla de Evidencia</h4>
+          <p class="subsection-desc">Configura la tabla de evidencia que aparecerá al final del reporte</p>
+          
+          <!-- Enable/Disable Toggle -->
+          <div class="evidencia-toggle">
+            <label class="toggle-label">
+              <input 
+                type="checkbox" 
+                v-model="reportCustomization.evidenciaConfig.enabled"
+                class="toggle-input"
+              />
+              <span class="toggle-slider"></span>
+              <span class="toggle-text">Incluir tabla de evidencia</span>
+            </label>
+          </div>
+
+          <!-- Configuration Button -->
+          <div v-if="reportCustomization.evidenciaConfig.enabled" class="evidencia-config">
+            <button @click="openEvidenciaModal" class="config-evidencia-btn">
+              <span class="btn-icon">⚙️</span>
+              <span>Configurar Campos y Estilo</span>
+            </button>
+            
+            <!-- Preview of selected fields -->
+            <div class="evidencia-preview">
+              <div class="preview-label">Campos seleccionados:</div>
+              <div class="selected-fields-preview">
+                <span 
+                  v-for="field in reportCustomization.evidenciaConfig.fields.slice(0, 5)" 
+                  :key="field"
+                  class="field-chip"
+                >
+                  {{ getFieldLabel(field) }}
+                </span>
+                <span v-if="reportCustomization.evidenciaConfig.fields.length > 5" class="field-chip more">
+                  +{{ reportCustomization.evidenciaConfig.fields.length - 5 }} más
+                </span>
+              </div>
+              <div class="preview-info">
+                <span class="info-item">
+                  <span class="info-icon">📊</span>
+                  Estilo: {{ getStyleLabel(reportCustomization.evidenciaConfig.style) }}
+                </span>
+                <span class="info-item">
+                  <span class="info-icon">Σ</span>
+                  Totales: {{ reportCustomization.evidenciaConfig.showTotals ? 'Sí' : 'No' }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Basic Metrics Selection (hidden, for compatibility) -->
         <div style="display: none;">
           <div v-for="metric in availableMetrics" :key="metric.id">
@@ -1369,6 +1481,16 @@ defineExpose({
       </div>
     </div>
     </div>
+    
+    <!-- Evidencia Configuration Modal -->
+    <EvidenciaModal
+      :is-open="showEvidenciaModal"
+      :platform="wizardStore.selectedPlatform?.id || 'facebook'"
+      :initial-fields="reportCustomization.evidenciaConfig.fields"
+      :initial-style="reportCustomization.evidenciaConfig.style"
+      @close="showEvidenciaModal = false"
+      @apply="applyEvidenciaConfig"
+    />
 
     <!-- Loading State -->
     <div v-if="isLoadingMetrics" class="loading-section">
@@ -3339,5 +3461,140 @@ defineExpose({
 .validation-status li.completed {
   color: #059669;
   font-weight: 500;
+}
+
+/* Evidencia Configuration Styles */
+.evidencia-toggle {
+  margin: 1rem 0;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-input {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+  background-color: #cbd5e1;
+  border-radius: 24px;
+  margin-right: 0.75rem;
+  transition: background-color 0.3s;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-input:checked + .toggle-slider {
+  background-color: #3b82f6;
+}
+
+.toggle-input:checked + .toggle-slider::after {
+  transform: translateX(24px);
+}
+
+.toggle-text {
+  font-size: 0.875rem;
+  color: #334155;
+}
+
+.evidencia-config {
+  margin-top: 1rem;
+}
+
+.config-evidencia-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.config-evidencia-btn:hover {
+  background: #e0f2fe;
+  border-color: #3b82f6;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.evidencia-preview {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.preview-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.selected-fields-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.field-chip {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  color: #334155;
+}
+
+.field-chip.more {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  font-weight: 500;
+}
+
+.preview-info {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8125rem;
+  color: #475569;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.info-icon {
+  font-size: 0.875rem;
 }
 </style>
