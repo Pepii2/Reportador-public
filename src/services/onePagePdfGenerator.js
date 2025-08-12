@@ -1,9 +1,10 @@
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
+import { prepareEvidenciaData } from '@/utils/dataAggregator'
 
 /**
  * One-Page PDF Report Generator
- * Clean, professional single-page marketing report
+ * Clean, professional single-page marketing report with platform-specific styling
  */
 export class OnePagePDFGenerator {
   constructor() {
@@ -13,7 +14,11 @@ export class OnePagePDFGenerator {
       secondary: '#64748b',
       dark: '#1e293b',
       light: '#f1f5f9',
-      white: '#ffffff'
+      white: '#ffffff',
+      // Platform specific colors
+      facebook: '#1877F2',
+      google: '#4285F4',
+      tiktok: '#FF0050'
     }
   }
 
@@ -38,16 +43,16 @@ export class OnePagePDFGenerator {
     yPos = this.addHeader(config, margins, contentWidth, yPos)
     
     // METRICS CARDS SECTION (1/4 of page)
-    const cardsHeight = 50
+    const cardsHeight = 45
     yPos = this.addMetricsCards(reportData, margins, contentWidth, yPos, cardsHeight)
     
     // CHART SECTION (Middle of page)
-    const chartHeight = 80
+    const chartHeight = 70
     yPos = this.addChart(reportData, config, margins, contentWidth, yPos, chartHeight)
     
-    // TABLE SECTION (Bottom of page)
+    // EVIDENCIA TABLE SECTION (Bottom of page)
     const remainingHeight = pageHeight - yPos - margins.bottom - 10
-    this.addDataTable(reportData, config, margins, contentWidth, yPos, remainingHeight)
+    this.addEvidenciaTable(reportData, config, margins, contentWidth, yPos, remainingHeight)
 
     return this.doc
   }
@@ -86,8 +91,9 @@ export class OnePagePDFGenerator {
       const platformText = config.platform.toUpperCase()
       const textWidth = this.doc.getTextWidth(platformText)
       const badgeX = margins.left + contentWidth - textWidth - 10
+      const platformColor = this.colors[config.platform] || this.colors.primary
       
-      this.doc.setFillColor(this.colors.primary)
+      this.doc.setFillColor(platformColor)
       this.doc.roundedRect(badgeX - 2, yPos + 10, textWidth + 8, 8, 2, 2, 'F')
       
       this.doc.setFontSize(8)
@@ -113,12 +119,14 @@ export class OnePagePDFGenerator {
       { id: 'ctr', label: 'CTR', value: summary.averageCTR }
     ]
 
-    // Calculate card dimensions
-    const cardsPerRow = Math.min(metrics.length, 4)
+    // Calculate card dimensions (max 6 cards)
+    const displayMetrics = metrics.slice(0, 6)
+    const cardsPerRow = Math.min(displayMetrics.length, 3)
+    const rows = Math.ceil(displayMetrics.length / cardsPerRow)
     const cardWidth = (contentWidth - (cardsPerRow - 1) * 5) / cardsPerRow
-    const cardHeight = height / Math.ceil(metrics.length / cardsPerRow) - 5
+    const cardHeight = (height - (rows - 1) * 5) / rows
 
-    metrics.forEach((metric, index) => {
+    displayMetrics.forEach((metric, index) => {
       const row = Math.floor(index / cardsPerRow)
       const col = index % cardsPerRow
       const x = margins.left + col * (cardWidth + 5)
@@ -141,28 +149,19 @@ export class OnePagePDFGenerator {
       this.doc.setFontSize(16)
       this.doc.setFont(undefined, 'bold')
       this.doc.setTextColor(this.colors.dark)
-      const value = this.formatMetricValue(metric.value || summary[`total${this.capitalize(metric.id)}`] || summary[metric.id], metric.id)
+      const value = this.formatMetricValue(
+        metric.value || summary[`total${this.capitalize(metric.id)}`] || summary[metric.id], 
+        metric.id
+      )
       
       // Truncate value if too long
       const maxWidth = cardWidth - 10
       let displayValue = value
       if (this.doc.getTextWidth(displayValue) > maxWidth) {
         this.doc.setFontSize(14)
-        if (this.doc.getTextWidth(displayValue) > maxWidth) {
-          this.doc.setFontSize(12)
-        }
       }
       
-      this.doc.text(displayValue, x + 5, y + 20)
-
-      // Trend or additional info (if available)
-      if (metric.trend) {
-        const trendText = metric.trend > 0 ? `↑ ${metric.trend}%` : `↓ ${Math.abs(metric.trend)}%`
-        const trendColor = metric.trend > 0 ? '#10b981' : '#ef4444'
-        this.doc.setFontSize(8)
-        this.doc.setTextColor(trendColor)
-        this.doc.text(trendText, x + 5, y + 27)
-      }
+      this.doc.text(displayValue, x + 5, y + 18)
     })
 
     return yPos + height + 10
@@ -179,7 +178,6 @@ export class OnePagePDFGenerator {
     this.doc.roundedRect(margins.left, yPos, contentWidth, height, 3, 3, 'FD')
 
     // Chart title
-    const chartType = config.customization?.chartType || 'line'
     const chartMetrics = config.customization?.chartMetrics || ['impressions', 'clicks']
     
     this.doc.setFontSize(11)
@@ -216,57 +214,72 @@ export class OnePagePDFGenerator {
   }
 
   /**
-   * Add data table section
+   * Add evidencia table with platform-specific styling
    */
-  addDataTable(reportData, config, margins, contentWidth, yPos, maxHeight) {
-    const data = reportData.data || []
-    const metrics = config.metrics || ['cost', 'impressions', 'clicks', 'ctr']
+  addEvidenciaTable(reportData, config, margins, contentWidth, yPos, maxHeight) {
+    const platform = config.platform || 'facebook'
+    const evidenciaConfig = config.customization?.evidenciaConfig || {
+      fields: ['campaign_name', 'status', 'cost', 'impressions', 'clicks', 'ctr'],
+      style: 'standard'
+    }
     
-    if (data.length === 0) return
+    // Aggregate data by campaign (one row per campaign)
+    const aggregatedData = prepareEvidenciaData(reportData.data || [], {
+      groupBy: 'campaign_name',
+      selectedFields: evidenciaConfig.fields,
+      sortBy: 'cost',
+      sortOrder: 'desc'
+    })
 
-    // Prepare table data
-    const headers = ['Fecha', ...metrics.map(m => this.getMetricLabel(m))]
-    const rows = data.slice(0, 15).map(row => [
-      this.formatDate(row.date),
-      ...metrics.map(m => this.formatMetricValue(row[m], m))
-    ])
+    if (aggregatedData.length === 0) return
+
+    // Title
+    this.doc.setFontSize(11)
+    this.doc.setFont(undefined, 'bold')
+    this.doc.setTextColor(this.colors.dark)
+    this.doc.text('Evidencia - Resumen por Campaña', margins.left, yPos + 5)
+
+    // Prepare table headers based on selected fields
+    const headers = evidenciaConfig.fields.map(field => this.getFieldLabel(field))
+    
+    // Prepare table rows (one per campaign with summed metrics)
+    const rows = aggregatedData.map(campaign => {
+      return evidenciaConfig.fields.map(field => {
+        const value = campaign[field]
+        return this.formatFieldValue(value, field)
+      })
+    })
+
+    // Platform-specific styling
+    const platformStyles = this.getPlatformTableStyles(platform)
 
     // Add table with autoTable
     this.doc.autoTable({
       head: [headers],
       body: rows,
-      startY: yPos,
+      startY: yPos + 10,
       margin: { left: margins.left, right: margins.right },
       styles: {
-        fontSize: 8,
-        cellPadding: 2,
-        lineColor: '#e2e8f0',
-        lineWidth: 0.1
+        fontSize: 9,
+        cellPadding: 3,
+        lineColor: platformStyles.lineColor,
+        lineWidth: 0.1,
+        font: 'helvetica'
       },
       headStyles: {
-        fillColor: [37, 99, 235], // primary color
-        textColor: [255, 255, 255],
+        fillColor: platformStyles.headerColor,
+        textColor: platformStyles.headerTextColor,
         fontStyle: 'bold',
-        fontSize: 9
+        fontSize: 10,
+        halign: 'left'
       },
       alternateRowStyles: {
-        fillColor: [248, 250, 252]
+        fillColor: platformStyles.alternateRowColor
       },
-      columnStyles: {
-        0: { cellWidth: 25 }, // Date column
-      },
+      columnStyles: this.getColumnStyles(evidenciaConfig.fields),
       didDrawPage: (data) => {
-        // Add note if more data exists
-        if (data.cursor.y < yPos + maxHeight - 10 && reportData.data.length > 15) {
-          this.doc.setFontSize(8)
-          this.doc.setTextColor(this.colors.secondary)
-          this.doc.setFont(undefined, 'italic')
-          this.doc.text(
-            `Mostrando 15 de ${reportData.data.length} registros totales`,
-            margins.left,
-            data.cursor.y + 5
-          )
-        }
+        // Add platform watermark/logo
+        this.addPlatformWatermark(platform, margins, data.cursor.y)
       }
     })
 
@@ -283,6 +296,70 @@ export class OnePagePDFGenerator {
   }
 
   /**
+   * Get platform-specific table styles
+   */
+  getPlatformTableStyles(platform) {
+    const styles = {
+      facebook: {
+        headerColor: [24, 119, 242], // Facebook blue
+        headerTextColor: [255, 255, 255],
+        lineColor: [225, 232, 237],
+        alternateRowColor: [247, 249, 252]
+      },
+      google: {
+        headerColor: [66, 133, 244], // Google blue
+        headerTextColor: [255, 255, 255],
+        lineColor: [218, 220, 224],
+        alternateRowColor: [248, 249, 250]
+      },
+      tiktok: {
+        headerColor: [255, 0, 80], // TikTok red/pink
+        headerTextColor: [255, 255, 255],
+        lineColor: [255, 229, 236],
+        alternateRowColor: [255, 250, 251]
+      }
+    }
+    return styles[platform] || styles.facebook
+  }
+
+  /**
+   * Get column styles based on field types
+   */
+  getColumnStyles(fields) {
+    const styles = {}
+    fields.forEach((field, index) => {
+      if (['cost', 'impressions', 'clicks', 'ctr', 'cpc', 'cpm', 'reach', 'conversions'].includes(field)) {
+        styles[index] = { halign: 'right' }
+      } else if (field === 'status') {
+        styles[index] = { halign: 'center' }
+      } else {
+        styles[index] = { halign: 'left' }
+      }
+    })
+    return styles
+  }
+
+  /**
+   * Add platform watermark
+   */
+  addPlatformWatermark(platform, margins, yPos) {
+    const platformNames = {
+      facebook: 'Meta',
+      google: 'Google Ads',
+      tiktok: 'TikTok Ads'
+    }
+    
+    this.doc.setFontSize(8)
+    this.doc.setTextColor(200, 200, 200)
+    this.doc.text(
+      platformNames[platform] || platform.toUpperCase(),
+      margins.left + 180,
+      yPos + 15,
+      { angle: 0 }
+    )
+  }
+
+  /**
    * Draw simple chart visualization
    */
   drawSimpleChart(data, metrics, x, y, width, height) {
@@ -294,99 +371,64 @@ export class OnePagePDFGenerator {
       return
     }
 
+    // Group data by date and sum metrics
+    const groupedData = {}
+    data.forEach(row => {
+      const date = this.formatDate(row.date)
+      if (!groupedData[date]) {
+        groupedData[date] = {}
+      }
+      metrics.forEach(metric => {
+        groupedData[date][metric] = (groupedData[date][metric] || 0) + (row[metric] || 0)
+      })
+    })
+
+    const dates = Object.keys(groupedData).sort()
+    if (dates.length < 2) return
+
     // Draw axes
     this.doc.setDrawColor(this.colors.light)
     this.doc.setLineWidth(0.5)
     this.doc.line(x, y + height, x + width, y + height) // X axis
     this.doc.line(x, y, x, y + height) // Y axis
 
-    // Draw grid lines
-    this.doc.setDrawColor('#f1f5f9')
-    this.doc.setLineWidth(0.1)
-    for (let i = 1; i <= 4; i++) {
-      const gridY = y + (height * i / 4)
-      this.doc.line(x, gridY, x + width, gridY)
-    }
-
-    // Plot lines for each metric
+    // Draw data lines
     metrics.forEach((metric, metricIndex) => {
-      const color = this.getMetricColor(metricIndex)
-      const values = data.slice(0, 30).map(d => parseFloat(d[metric]) || 0)
-      
-      if (values.length === 0) return
-      
+      const values = dates.map(date => groupedData[date][metric] || 0)
       const maxValue = Math.max(...values)
-      const minValue = Math.min(...values)
-      const range = maxValue - minValue || 1
-      
+      if (maxValue === 0) return
+
+      const color = this.getMetricColor(metricIndex)
       this.doc.setDrawColor(color)
-      this.doc.setLineWidth(1.5)
-      
-      const points = values.map((value, i) => ({
-        x: x + (i / (values.length - 1)) * width,
-        y: y + height - ((value - minValue) / range) * height
-      }))
-      
+      this.doc.setLineWidth(1)
+
       // Draw line
-      points.forEach((point, i) => {
-        if (i > 0) {
-          this.doc.line(points[i-1].x, points[i-1].y, point.x, point.y)
-        }
-      })
-      
-      // Draw points
-      this.doc.setFillColor(color)
-      points.forEach(point => {
-        this.doc.circle(point.x, point.y, 1, 'F')
+      dates.forEach((date, i) => {
+        if (i === 0) return
+        
+        const x1 = x + ((i - 1) / (dates.length - 1)) * width
+        const y1 = y + height - (values[i - 1] / maxValue) * height
+        const x2 = x + (i / (dates.length - 1)) * width
+        const y2 = y + height - (values[i] / maxValue) * height
+        
+        this.doc.line(x1, y1, x2, y2)
+        
+        // Draw points
+        this.doc.setFillColor(color)
+        this.doc.circle(x2, y2, 1, 'F')
       })
     })
+
+    // Add date labels (first and last)
+    this.doc.setFontSize(7)
+    this.doc.setTextColor(this.colors.secondary)
+    this.doc.text(dates[0], x, y + height + 4)
+    this.doc.text(dates[dates.length - 1], x + width - 10, y + height + 4)
   }
 
   /**
-   * Helper methods
+   * Helper functions
    */
-  formatDate(dateString) {
-    if (!dateString) return ''
-    const date = new Date(dateString)
-    return date.toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit'
-    })
-  }
-
-  formatMetricValue(value, metric) {
-    if (value === null || value === undefined) return '0'
-    
-    const metricStr = String(metric).toLowerCase()
-    
-    // Currency metrics
-    if (metricStr.includes('cost') || metricStr.includes('cpc') || 
-        metricStr.includes('cpm') || metricStr.includes('revenue')) {
-      const num = parseFloat(value) || 0
-      return new Intl.NumberFormat('es-ES', {
-        style: 'currency',
-        currency: 'EUR',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      }).format(num)
-    }
-    
-    // Percentage metrics
-    if (metricStr.includes('ctr') || metricStr.includes('rate')) {
-      return `${parseFloat(value || 0).toFixed(2)}%`
-    }
-    
-    // ROAS
-    if (metricStr.includes('roas')) {
-      return `${parseFloat(value || 0).toFixed(2)}x`
-    }
-    
-    // Regular numbers
-    const num = parseInt(value) || 0
-    return new Intl.NumberFormat('es-ES').format(num)
-  }
-
   getMetricLabel(metric) {
     const labels = {
       cost: 'Inversión',
@@ -395,27 +437,107 @@ export class OnePagePDFGenerator {
       ctr: 'CTR',
       cpc: 'CPC',
       cpm: 'CPM',
+      reach: 'Alcance',
+      frequency: 'Frecuencia',
       conversions: 'Conversiones',
+      purchases: 'Compras',
       revenue: 'Ingresos',
       roas: 'ROAS',
-      totalCost: 'Inversión Total',
-      totalImpressions: 'Impresiones Totales',
-      totalClicks: 'Clics Totales',
-      averageCTR: 'CTR Promedio',
-      averageCPC: 'CPC Promedio',
-      averageCPM: 'CPM Promedio'
+      campaign_name: 'Campaña',
+      status: 'Estado',
+      budget: 'Presupuesto',
+      objective: 'Objetivo'
     }
     return labels[metric] || metric
   }
 
-  getMetricColor(index) {
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
-    return colors[index % colors.length]
+  getFieldLabel(field) {
+    return this.getMetricLabel(field)
+  }
+
+  formatMetricValue(value, metric) {
+    if (value == null || value === '') return '—'
+    
+    switch (metric) {
+      case 'cost':
+      case 'cpc':
+      case 'cpm':
+      case 'revenue':
+      case 'budget':
+        return `$${this.formatNumber(value)}`
+      case 'ctr':
+      case 'conversion_rate':
+        return `${(value * 100).toFixed(2)}%`
+      case 'roas':
+      case 'frequency':
+        return value.toFixed(2)
+      case 'impressions':
+      case 'clicks':
+      case 'reach':
+      case 'conversions':
+      case 'purchases':
+        return this.formatNumber(value)
+      default:
+        return String(value)
+    }
+  }
+
+  formatFieldValue(value, field) {
+    // Check if it's a metric field
+    if (['cost', 'impressions', 'clicks', 'ctr', 'cpc', 'cpm', 'reach', 'conversions', 'revenue', 'roas'].includes(field)) {
+      return this.formatMetricValue(value, field)
+    }
+    
+    // Status field
+    if (field === 'status') {
+      return value || 'Activo'
+    }
+    
+    // Date fields
+    if (field === 'date' || field === 'date_start' || field === 'date_stop') {
+      return this.formatDate(value)
+    }
+    
+    // Text fields
+    return value || '—'
+  }
+
+  formatNumber(num) {
+    if (!num) return '0'
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M'
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K'
+    }
+    return num.toFixed(0)
+  }
+
+  formatDate(date) {
+    if (!date) return ''
+    const d = new Date(date)
+    return d.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
   }
 
   capitalize(str) {
     if (!str) return ''
     return str.charAt(0).toUpperCase() + str.slice(1)
+  }
+
+  getMetricColor(index) {
+    const colors = [
+      '#3b82f6', // blue
+      '#10b981', // green
+      '#f59e0b', // amber
+      '#ef4444', // red
+      '#8b5cf6', // purple
+      '#06b6d4'  // cyan
+    ]
+    return colors[index % colors.length]
   }
 }
 
