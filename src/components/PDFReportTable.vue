@@ -1,5 +1,5 @@
 <template>
-  <div class="pdf-table-container" :class="`style-${tableStyle}`">
+  <div class="pdf-table-container" :class="[`style-${tableStyle}`, `platform-${platform}`]">
     <table v-if="rows.length">
       <thead>
         <tr>
@@ -87,17 +87,24 @@ const metricConfig = {
   bounce_rate: { label: 'Tasa de Rebote', format: 'percentage', aggregate: 'average' }
 }
 
-// Process selected metrics
+// Process selected metrics - handle both metric and non-metric fields
 const selectedMetrics = computed(() => {
   return props.metrics.map(metric => {
     const key = typeof metric === 'string' ? metric : metric.key
     const config = metricConfig[key] || {}
+    
+    // Check if it's a non-metric field
+    const isNonMetric = ['campaign_name', 'campaign_id', 'adset_name', 'adset_id', 
+                        'ad_name', 'ad_id', 'account_name', 'account_id', 
+                        'status', 'date', 'date_start', 'date_stop', 
+                        'objective', 'delivery_status'].includes(key)
+    
     return {
       key,
       label: (typeof metric === 'object' ? metric.label : null) || config.label || key,
-      format: (typeof metric === 'object' ? metric.format : null) || config.format || 'number',
-      aggregate: (typeof metric === 'object' ? metric.aggregate : null) || config.aggregate || 'sum',
-      align: (typeof metric === 'object' ? metric.align : null) || 'text-right'
+      format: (typeof metric === 'object' ? metric.format : null) || config.format || (isNonMetric ? 'text' : 'number'),
+      aggregate: (typeof metric === 'object' ? metric.aggregate : null) || config.aggregate || (isNonMetric ? 'none' : 'sum'),
+      align: (typeof metric === 'object' ? metric.align : null) || (isNonMetric ? 'text-left' : 'text-right')
     }
   })
 })
@@ -107,6 +114,7 @@ const rows = computed(() => props.data || [])
 
 // Formatting functions
 const formatters = {
+  text: (v) => v || '—',
   number: (v) => {
     if (v == null || v === '') return '—'
     return Number(v).toLocaleString('es-MX')
@@ -137,7 +145,8 @@ const formatters = {
     } catch {
       return v
     }
-  }
+  },
+  status: (v) => v || '—'
 }
 
 function formatValue(value, format) {
@@ -514,28 +523,76 @@ tbody tr:last-child td:last-child {
   }
 }
 
+/* Platform-specific styles */
+.platform-facebook .style-standard th {
+  background: linear-gradient(135deg, #1877F2 0%, #42B883 100%);
+  color: white;
+  border-bottom: none;
+}
+
+.platform-google .style-standard th {
+  background: linear-gradient(135deg, #4285F4 0%, #34A853 50%, #FBBC05 100%);
+  color: white;
+  border-bottom: none;
+}
+
+.platform-tiktok .style-standard th {
+  background: linear-gradient(135deg, #000000 0%, #FF0050 50%, #00F2EA 100%);
+  color: white;
+  border-bottom: none;
+}
+
+.platform-facebook .campaign-cell {
+  color: #1877F2;
+}
+
+.platform-google .campaign-cell {
+  color: #4285F4;
+}
+
+.platform-tiktok .campaign-cell {
+  color: #FF0050;
+}
+
+/* Compact styles for fitting in one page */
+.pdf-table-container.fit-page table {
+  font-size: 11px;
+}
+
+.pdf-table-container.fit-page th,
+.pdf-table-container.fit-page td {
+  padding: 4px 6px;
+  font-size: 11px;
+}
+
+.pdf-table-container.fit-page .campaign-col {
+  min-width: 100px;
+}
+
 /* Print styles */
 @media print {
   .pdf-table-container {
     page-break-inside: avoid;
-    margin: 10px 0;
+    margin: 5px 0;
   }
   
   table {
-    font-size: 10px;
+    font-size: 9px;
     box-shadow: none !important;
   }
   
   th {
     background: #f0f0f0 !important;
     color: #000 !important;
-    padding: 6px 8px;
+    padding: 3px 4px;
+    font-size: 9px;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   
   td {
-    padding: 6px 8px;
+    padding: 3px 4px;
+    font-size: 9px;
   }
   
   tbody tr:hover {
@@ -557,6 +614,12 @@ tbody tr:last-child td:last-child {
   .totals-row {
     background: #f0f0f0 !important;
     border-top: 1px solid #000;
+  }
+  
+  /* Force single page */
+  .pdf-table-container {
+    max-height: 100vh;
+    overflow: hidden;
   }
 }
 </style>
